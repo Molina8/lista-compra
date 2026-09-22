@@ -873,3 +873,48 @@ dialog menu {
 .toast[hidden] { display: none; }
 #toast-icon { color: #9FD49B; font-size: 18px; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+
+
+/* ===================== SHOP: compra activa ===================== */
+.finish-btn {
+  margin: 16px 0;
+  box-shadow: var(--shadow-md);
+}
+
+/* ===================== SHOP: pick (selección) ===================== */
+.list li.picked {
+  background: var(--secondary-container);
+  border-color: var(--secondary-container);
+}
+.list li.picked .name {
+  color: var(--on-secondary-container);
+  font-weight: 500;
+}
+.pick-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-container-high);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: transparent;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background 0.15s, color 0.15s;
+}
+.list li.picked .pick-check {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.list li.picked .pick-check::after {
+  content: "✓";
+}
+
+.btn-primary:disabled {
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  cursor: not-allowed;
+}
+.btn-primary:disabled:active { transform: none; }

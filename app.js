@@ -1,8 +1,8 @@
 // Lista de la compra — PWA sincronizada en tiempo real con Firebase.
 // Sin auth: cada lista se identifica por una "clave compartida" que ambos usuarios conocen.
 // Estructura en Firebase:
-//   /listas/<clave>/master/items    = { nameLower: name }
-//   /listas/<clave>/active/items    = { nameLower: { name, inCart, ts } }
+//   /listas/<clave>/master/items    = { nameLower: name }            (catálogo)
+//   /listas/<clave>/active/items    = { nameLower: { name, inCart, ts } }   (compra activa)
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDVodEI4q1k280O50xvb5gnzLN_IPtxZrI",
@@ -37,7 +37,6 @@ async function initFirebase() {
       set: dbMod.set,
       update: dbMod.update,
       remove: dbMod.remove,
-      child: dbMod.child,
       available: true
     };
     return true;
@@ -55,6 +54,7 @@ const state = {
   key: localStorage.getItem(KEY_STORAGE) || null,
   master: {},
   active: {},
+  pickSelected: {},
   connected: false
 };
 
@@ -113,13 +113,13 @@ async function connectToFirebase() {
     state.master = snap.val() || {};
     persistLocal();
     renderMaster();
+    renderShop();
   });
   fb.onValue(fb.ref(fb.db, dbPath('active/items')), (snap) => {
     state.active = snap.val() || {};
     persistLocal();
     renderShop();
   });
-  // .info/connected es un path interno de Firebase
   fb.onValue(fb.ref(fb.db, '.info/connected'), (snap) => {
     state.connected = !!snap.val();
     renderSyncStatus();
@@ -150,53 +150,67 @@ async function addToMaster(nameRaw) {
   if (!name) return;
   const key = name.toLowerCase();
   if (state.master[key]) {
-    showToast(`"${name}" ya está en la lista`, true);
+    showToast(`"${name}" ya está en el catálogo`, true);
     return;
   }
   if (!fb.available) {
     state.master[key] = name;
     persistLocal();
     renderMaster();
-    showToast(`"${name}" añadido (local)`);
+    renderShop();
+    showToast(`"${name}" añadido al catálogo (local)`);
     return;
   }
   await fb.set(fb.ref(fb.db, dbPath(`master/items/${key}`)), name);
-  showToast(`"${name}" añadido`);
+  showToast(`"${name}" añadido al catálogo`);
 }
 
 async function removeFromMaster(key) {
   const name = state.master[key];
   if (!fb.available) {
     delete state.master[key];
+    delete state.pickSelected[key];
     persistLocal();
     renderMaster();
+    renderShop();
     return;
   }
   await fb.remove(fb.ref(fb.db, dbPath(`master/items/${key}`)));
-  showToast(`"${name}" eliminado`);
+  delete state.pickSelected[key];
+  showToast(`"${name}" eliminado del catálogo`);
 }
 
-async function startShopping() {
-  if (Object.keys(state.active).length > 0) return;
-  if (Object.keys(state.master).length === 0) {
-    showToast('Añade productos primero a la Maestra', true);
-    switchView('master');
-    return;
+function togglePick(key) {
+  if (!state.master[key]) return;
+  if (state.pickSelected[key]) {
+    delete state.pickSelected[key];
+  } else {
+    state.pickSelected[key] = state.master[key];
   }
+  renderShop();
+}
+
+async function startShoppingFromPick() {
+  const keys = Object.keys(state.pickSelected);
+  if (keys.length === 0) return;
+  if (Object.keys(state.active).length > 0) return;
+
   const items = {};
   const ts = Date.now();
-  for (const k of Object.keys(state.master)) {
-    items[k] = { name: state.master[k], inCart: false, ts };
+  for (const k of keys) {
+    items[k] = { name: state.pickSelected[k], inCart: false, ts };
   }
+  state.pickSelected = {};
+
   if (!fb.available) {
     state.active = items;
     persistLocal();
     renderShop();
-    showToast(`Compra iniciada (local): ${Object.keys(items).length}`);
+    showToast(`Compra iniciada (local): ${keys.length} productos`);
     return;
   }
   await fb.set(fb.ref(fb.db, dbPath('active/items')), items);
-  showToast(`Compra iniciada: ${Object.keys(items).length} productos`);
+  showToast(`Compra iniciada: ${keys.length} productos`);
 }
 
 async function toggleInCart(key) {
@@ -212,21 +226,23 @@ async function toggleInCart(key) {
   await fb.update(fb.ref(fb.db, dbPath('active/items')), { [key]: next });
 }
 
-async function endShopping() {
+async function finishShopping() {
+  const count = Object.keys(state.active).length;
+  const done = Object.values(state.active).filter(x => x.inCart).length;
   if (!fb.available) {
     state.active = {};
     persistLocal();
     renderShop();
-    showToast('Compra finalizada (local)');
+    showToast(`Compra finalizada (local): ${done}/${count}`);
     return;
   }
   await fb.set(fb.ref(fb.db, dbPath('active/items')), null);
-  showToast('Compra finalizada');
+  showToast(`Compra finalizada: ${done}/${count}`);
 }
 
 async function deleteList() {
   if (!fb.available) {
-    state.master = {}; state.active = {};
+    state.master = {}; state.active = {}; state.pickSelected = {};
     persistLocal();
     render();
     showToast('Lista borrada (local)');
@@ -249,38 +265,34 @@ function render() {
 
 function renderShop() {
   const list = $('shop-list');
-  const empty = $('shop-empty');
-  const activeBox = $('shop-active');
-  const emptyState = $('shop-empty-state');
-  const progress = $('shop-progress');
-
   if (!list) return;
   list.innerHTML = '';
 
   const activeKeys = Object.keys(state.active);
+  const masterKeys = Object.keys(state.master);
   const inActive = activeKeys.length > 0;
+  const pickBox = $('shop-pick');
+  const activeBox = $('shop-active');
+  const emptyState = $('shop-empty-state');
 
-  emptyState.hidden = inActive;
-  activeBox.hidden = !inActive;
-  progress.hidden = !inActive;
-
-  if (!inActive) {
-    const mini = $('empty-master-status');
-    const miniCount = $('mini-count');
-    const mCount = Object.keys(state.master).length;
-    if (mCount === 0) {
-      mini.hidden = true;
-    } else {
-      mini.hidden = false;
-      miniCount.textContent = `${mCount} productos en la Maestra`;
-    }
+  if (inActive) {
+    activeBox.hidden = false;
+    pickBox.hidden = true;
+    emptyState.hidden = true;
+  } else if (masterKeys.length === 0) {
+    activeBox.hidden = true;
+    pickBox.hidden = true;
+    emptyState.hidden = false;
+    return;
+  } else {
+    activeBox.hidden = true;
+    pickBox.hidden = false;
+    emptyState.hidden = true;
+    renderPick();
     return;
   }
 
-  empty.hidden = true;
-
   const sorted = activeKeys.map(k => ({ k, ...state.active[k] })).sort((a, b) => (a.ts||0) - (b.ts||0));
-
   sorted.forEach((item) => {
     const li = document.createElement('li');
     li.className = item.inCart ? 'done' : '';
@@ -302,6 +314,52 @@ function renderShop() {
   $('progress-fill').style.width = total ? `${(done / total) * 100}%` : '0%';
   $('pending-counter').textContent = `${total - done} pendientes`;
   $('cart-counter').textContent = `${done} en carrito`;
+}
+
+function renderPick() {
+  const list = $('pick-list');
+  const counter = $('pick-counter');
+  const startBtn = $('btn-start-shop');
+  const empty = $('pick-empty');
+  if (!list) return;
+
+  list.innerHTML = '';
+  const masterKeys = Object.keys(state.master);
+
+  if (masterKeys.length === 0) {
+    empty.hidden = false;
+    list.hidden = true;
+    counter.textContent = '0 seleccionados';
+    startBtn.disabled = true;
+    return;
+  }
+  empty.hidden = true;
+  list.hidden = false;
+
+  const sortedKeys = masterKeys.slice().sort((a, b) => state.master[a].localeCompare(state.master[b], 'es'));
+
+  sortedKeys.forEach((k) => {
+    const name = state.master[k];
+    const selected = !!state.pickSelected[k];
+    const li = document.createElement('li');
+    li.className = selected ? 'picked' : '';
+    li.dataset.key = k;
+    li.innerHTML = `
+      <div class="body">
+        <span class="pick-check"></span>
+        <span class="name"></span>
+      </div>
+    `;
+    li.querySelector('.name').textContent = name;
+    li.addEventListener('click', () => togglePick(k));
+    list.appendChild(li);
+  });
+
+  const count = Object.keys(state.pickSelected).length;
+  counter.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+  startBtn.disabled = count === 0;
+  const labelSpan = startBtn.querySelector('span:last-of-type') || startBtn.lastChild;
+  labelSpan.textContent = `Empezar compra (${count})`;
 }
 
 function renderMaster() {
@@ -338,7 +396,7 @@ function renderMaster() {
     li.querySelector('.name').textContent = name;
     li.querySelector('.remove').addEventListener('click', (e) => {
       e.stopPropagation();
-      confirmDialog(`¿Borrar "${name}" de la lista maestra?`, () => removeFromMaster(k));
+      confirmDialog(`¿Borrar "${name}" del catálogo?`, () => removeFromMaster(k));
     });
     list.appendChild(li);
   });
@@ -450,6 +508,7 @@ $('btn-change-key').addEventListener('click', () => {
     state.key = null;
     state.master = {};
     state.active = {};
+    state.pickSelected = {};
     pendingCreatedKey = null;
     showKeyScreen();
   });
@@ -467,7 +526,17 @@ $('add-form').addEventListener('submit', (e) => {
   input.focus();
 });
 
-$('btn-start-shop').addEventListener('click', startShopping);
+$('btn-start-shop').addEventListener('click', startShoppingFromPick);
+$('btn-finish-shop').addEventListener('click', () => {
+  const total = Object.keys(state.active).length;
+  const done = Object.values(state.active).filter(x => x.inCart).length;
+  const und = total - done;
+  if (und > 0) {
+    confirmDialog(`Te quedan ${und} producto${und === 1 ? '' : 's'} sin marcar. ¿Finalizar de todas formas?`, () => finishShopping());
+  } else {
+    finishShopping();
+  }
+});
 $('btn-go-master').addEventListener('click', () => switchView('master'));
 
 $('btn-export').addEventListener('click', () => {
@@ -481,7 +550,7 @@ $('btn-export').addEventListener('click', () => {
   a.download = `lista-compra-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast('Lista exportada');
+  showToast('Catálogo exportado');
 });
 
 $('btn-reset').addEventListener('click', () => {
@@ -493,15 +562,24 @@ $('btn-reset').addEventListener('click', () => {
 // ============================================================
 
 const dialog = $('confirm-dialog');
+let pendingOnOk = null;
+let pendingFired = false;
+
+dialog.addEventListener('close', () => {
+  if (pendingFired) return;
+  pendingFired = true;
+  const ok = dialog.returnValue === 'ok';
+  const cb = pendingOnOk;
+  pendingOnOk = null;
+  if (ok && cb) cb();
+});
+
 function confirmDialog(text, onOk) {
   $('confirm-text').textContent = text;
+  pendingOnOk = onOk;
+  pendingFired = false;
+  dialog.returnValue = ''; // reset
   dialog.showModal();
-  const ok = $('confirm-ok');
-  const handler = () => {
-    ok.removeEventListener('click', handler);
-    if (dialog.returnValue === 'ok') onOk();
-  };
-  ok.addEventListener('click', handler);
 }
 
 let toastTimeout;

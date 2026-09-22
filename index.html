@@ -14,7 +14,6 @@
   <title>Lista de la compra</title>
 </head>
 <body>
-  <!-- Pantalla de clave compartida (primer arranque / cambio de lista) -->
   <section id="view-key" class="view key-screen">
     <div class="key-card card">
       <div class="key-icon">🔗</div>
@@ -22,27 +21,22 @@
       <p class="key-text" id="key-text">
         Pega la clave compartida que te pasó tu pareja. Si es la primera vez, créala ahora.
       </p>
-
       <div class="key-mode">
         <button class="mode-btn active" id="mode-join">Tengo una clave</button>
         <button class="mode-btn" id="mode-create">Crear nueva lista</button>
       </div>
-
       <input id="key-input" type="text" class="key-input" placeholder="Ej: compras-molina-2026" autocomplete="off" />
       <button id="key-submit" class="btn btn-primary btn-block btn-lg">Conectar</button>
-
       <div id="key-created" class="key-created" hidden>
         <div class="divider"><span>CLAVE DE LA LISTA</span></div>
         <div class="key-display" id="key-display"></div>
         <button id="copy-key" class="btn btn-secondary btn-block">📋 Copiar clave</button>
         <p class="key-hint">Mándasela a tu pareja por WhatsApp para que se conecte.</p>
       </div>
-
       <p class="key-error" id="key-error" hidden></p>
     </div>
   </section>
 
-  <!-- App principal -->
   <section id="app-shell" hidden>
     <header class="topbar">
       <div class="topbar-left">
@@ -58,25 +52,40 @@
     </header>
 
     <main class="container">
-      <!-- Vista: Comprar -->
       <section id="view-shop" class="view">
-        <div id="shop-progress" class="card progress" hidden>
-          <div class="progress-row">
-            <div class="progress-meta">
-              <span class="progress-label">Progreso</span>
+        <div id="shop-active" hidden>
+          <div id="shop-progress" class="card progress">
+            <div class="progress-row">
+              <div class="progress-meta">
+                <span class="progress-label">Progreso</span>
+              </div>
+              <span class="pill pill-secondary" id="progress-pill">0 / 0</span>
             </div>
-            <span class="pill pill-secondary" id="progress-pill">0 / 0</span>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+            <div class="progress-counts">
+              <span id="pending-counter">0 pendientes</span>
+              <span id="cart-counter">0 en carrito</span>
+            </div>
           </div>
-          <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-          <div class="progress-counts">
-            <span id="pending-counter">0 pendientes</span>
-            <span id="cart-counter">0 en carrito</span>
-          </div>
+          <button id="btn-finish-shop" class="btn btn-primary btn-block btn-lg finish-btn">
+            <span>✓</span><span>Finalizar compra</span>
+          </button>
+          <ul id="shop-list" class="list"></ul>
         </div>
 
-        <div id="shop-active">
-          <ul id="shop-list" class="list"></ul>
-          <p id="shop-empty" class="empty" hidden>No hay nada en la lista. Añade productos en <strong>Maestra</strong>.</p>
+        <div id="shop-pick" hidden>
+          <div class="section-header">
+            <div>
+              <span class="section-title">¿Qué vas a comprar?</span>
+              <span class="section-subtitle" id="pick-counter">0 seleccionados</span>
+            </div>
+          </div>
+          <p class="empty-text" style="margin: 8px 0 16px;">Toca los productos que necesitas reponer. La compra activa solo incluirá estos.</p>
+          <ul id="pick-list" class="list"></ul>
+          <p id="pick-empty" class="empty" hidden>Tu catálogo está vacío. Añade productos en la pestaña <strong>Catálogo</strong>.</p>
+          <button id="btn-start-shop" class="btn btn-primary btn-block btn-lg" disabled>
+            <span>🛒</span><span>Empezar compra (0)</span>
+          </button>
         </div>
 
         <div id="shop-empty-state" class="card empty-card" hidden>
@@ -86,41 +95,28 @@
             </div>
             <div class="empty-badge">✓</div>
           </div>
-          <h2 class="empty-title">No hay ninguna compra en curso</h2>
-          <p class="empty-text">Inicia una compra para copiar los productos de tu lista maestra y llevar el control en el súper.</p>
-          <div id="empty-master-status" class="card mini-card" hidden>
-            <div class="mini-icon">📦</div>
-            <div class="mini-text">
-              <span class="mini-label">Despensa preparada</span>
-              <span class="mini-value" id="mini-count">0 productos en la Maestra</span>
-            </div>
-            <div class="mini-check">✓</div>
-          </div>
-          <button id="btn-start-shop" class="btn btn-primary btn-lg">Iniciar nueva compra</button>
-          <button class="btn btn-link" id="btn-go-master">Gestionar lista maestra →</button>
+          <h2 class="empty-title">Tu catálogo está vacío</h2>
+          <p class="empty-text">Añade los productos que sueles tener en casa en la pestaña <strong>Catálogo</strong>. Cuando vayas al súper, elige solo los que falten.</p>
+          <button class="btn btn-primary btn-lg" id="btn-go-master">Ir al catálogo</button>
         </div>
       </section>
 
-      <!-- Vista: Maestra -->
       <section id="view-master" class="view" hidden>
         <div class="section-header">
           <div>
-            <span class="section-title">Lista Maestra</span>
+            <span class="section-title">Catálogo</span>
             <span class="section-subtitle" id="master-counter">0 productos guardados</span>
           </div>
         </div>
-
         <form id="add-form" class="add-form">
           <span class="add-icon">✎</span>
-          <input id="add-input" type="text" placeholder="Añadir habitual (ej. Avena, Yogur…)" autocomplete="off" required />
+          <input id="add-input" type="text" placeholder="Añadir producto (ej. Avena, Yogur…)" autocomplete="off" required />
           <button type="submit" class="add-btn" aria-label="Añadir">+</button>
         </form>
-
         <ul id="master-list" class="list"></ul>
-        <p id="master-empty" class="empty" hidden>Lista vacía. Añade el primer producto arriba.</p>
+        <p id="master-empty" class="empty" hidden>Catálogo vacío. Añade el primer producto arriba.</p>
       </section>
 
-      <!-- Vista: Ajustes -->
       <section id="view-settings" class="view" hidden>
         <div class="section-header">
           <div>
@@ -132,7 +128,6 @@
             <span>Sync activo</span>
           </span>
         </div>
-
         <div class="card info-banner">
           <div class="info-icon">🔒</div>
           <div>
@@ -140,7 +135,6 @@
             <div class="info-text">Tus datos están en Firebase bajo una clave que solo conocéis tú y tu pareja. Sin cuentas ni emails.</div>
           </div>
         </div>
-
         <div class="group">
           <div class="group-label">
             <span class="group-icon">⇄</span>
@@ -152,7 +146,7 @@
                 <div class="action-icon bg-tint-primary">⬇</div>
                 <div>
                   <div class="action-title">Exportar a JSON</div>
-                  <div class="action-text">Descarga un archivo con tu lista maestra y estado actual.</div>
+                  <div class="action-text">Descarga un archivo con tu catálogo y estado actual.</div>
                 </div>
               </div>
               <button id="btn-export" class="btn btn-primary">
@@ -161,7 +155,6 @@
             </div>
           </div>
         </div>
-
         <div class="group">
           <div class="group-label danger">
             <span class="group-icon">⚠</span>
@@ -183,11 +176,10 @@
             </button>
           </div>
         </div>
-
         <footer class="app-footer">
           <div class="footer-title">
             <span>✓</span>
-            <span>Lista de Compra v1.1</span>
+            <span>Lista de Compra v1.2</span>
           </div>
           <div class="footer-text">Sincronizada en tiempo real con Firebase</div>
         </footer>
@@ -206,7 +198,7 @@
       </button>
       <button data-view="master" class="tab">
         <span class="tab-icon">≡</span>
-        <span class="tab-label">Maestra</span>
+        <span class="tab-label">Catálogo</span>
       </button>
       <button data-view="settings" class="tab">
         <span class="tab-icon">⚙</span>
