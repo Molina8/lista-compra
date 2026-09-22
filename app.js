@@ -1,36 +1,250 @@
-// Lista de la compra — PWA minimalista, localStorage, sin servidor.
-// Estado: { master: [string], active: [{name, inCart}] }
+// Lista de la compra — PWA sincronizada en tiempo real con Firebase.
+// Sin auth: cada lista se identifica por una "clave compartida" que ambos usuarios conocen.
+// Estructura en Firebase:
+//   /listas/<clave>/master/items    = { nameLower: name }
+//   /listas/<clave>/active/items    = { nameLower: { name, inCart, ts } }
 
-const STORAGE_KEY = 'lista-compra-v1';
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDVodEI4q1k280O50xvb5gnzLN_IPtxZrI",
+  authDomain: "list-e9e7f.firebaseapp.com",
+  databaseURL: "https://list-e9e7f-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "list-e9e7f",
+  storageBucket: "list-e9e7f.firebasestorage.app",
+  messagingSenderId: "697517057614",
+  appId: "1:697517057614:web:5455360840bd731514c51f",
+  measurementId: "G-78JLP37GHN"
+};
 
-const state = load();
-
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      // Migración defensiva
-      return {
-        master: Array.isArray(parsed.master) ? parsed.master : [],
-        active: Array.isArray(parsed.active) ? parsed.active : []
-      };
-    }
-  } catch (e) { /* ignore */ }
-  return { master: [], active: [] };
-}
-
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
+const KEY_STORAGE = 'lista-compra-key-v1';
 const $ = (id) => document.getElementById(id);
 
-// ===================== RENDER =====================
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+
+let fb = { available: false };
+
+async function initFirebase() {
+  try {
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+    const dbMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js');
+    const app = initializeApp(FIREBASE_CONFIG);
+    const database = dbMod.getDatabase(app);
+    fb = {
+      db: database,
+      ref: dbMod.ref,
+      onValue: dbMod.onValue,
+      set: dbMod.set,
+      update: dbMod.update,
+      remove: dbMod.remove,
+      child: dbMod.child,
+      available: true
+    };
+    return true;
+  } catch (e) {
+    console.warn('Firebase no disponible, modo local:', e);
+    return false;
+  }
+}
+
+// ============================================================
+// ESTADO LOCAL
+// ============================================================
+
+const state = {
+  key: localStorage.getItem(KEY_STORAGE) || null,
+  master: {},
+  active: {},
+  connected: false
+};
+
+function persistLocal() {
+  try {
+    if (state.key) {
+      localStorage.setItem(`lista-cache-${state.key}`, JSON.stringify({
+        master: state.master, active: state.active
+      }));
+    }
+  } catch {}
+}
+
+function loadLocalCache() {
+  if (!state.key) return null;
+  try {
+    const raw = localStorage.getItem(`lista-cache-${state.key}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+// ============================================================
+// KEY / AUTH-LITE
+// ============================================================
+
+function sanitizeKey(raw) {
+  return (raw || '').trim().toLowerCase()
+    .replace(/[^a-z0-9-_]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
+}
+
+function generateKey() {
+  const words = ['leche','pan','cafe','queso','fruta','arroz','huevo','agua','pera','luna','sol','flor','mar','rio','verde','sal'];
+  const a = words[Math.floor(Math.random()*words.length)];
+  const b = words[Math.floor(Math.random()*words.length)];
+  const c = Math.random().toString(36).slice(2, 6);
+  return `${a}-${b}-${c}`;
+}
+
+async function setKey(key) {
+  state.key = key;
+  localStorage.setItem(KEY_STORAGE, key);
+  await connectToFirebase();
+  render();
+}
+
+async function connectToFirebase() {
+  if (!fb.available || !state.key) {
+    state.connected = false;
+    return;
+  }
+
+  fb.onValue(fb.ref(fb.db, dbPath('master/items')), (snap) => {
+    state.master = snap.val() || {};
+    persistLocal();
+    renderMaster();
+  });
+  fb.onValue(fb.ref(fb.db, dbPath('active/items')), (snap) => {
+    state.active = snap.val() || {};
+    persistLocal();
+    renderShop();
+  });
+  // .info/connected es un path interno de Firebase
+  fb.onValue(fb.ref(fb.db, '.info/connected'), (snap) => {
+    state.connected = !!snap.val();
+    renderSyncStatus();
+  });
+}
+
+function renderSyncStatus() {
+  const dot = document.querySelector('.sync-dot');
+  const lbl = $('sync-label');
+  if (!dot || !lbl) return;
+  if (state.connected) {
+    dot.style.background = 'var(--primary)';
+    lbl.textContent = 'Conectado';
+  } else {
+    dot.style.background = 'var(--outline)';
+    lbl.textContent = 'Sin conexión';
+  }
+}
+
+// ============================================================
+// OPERACIONES
+// ============================================================
+
+function dbPath(subpath) { return `listas/${state.key}/${subpath}`; }
+
+async function addToMaster(nameRaw) {
+  const name = nameRaw.trim();
+  if (!name) return;
+  const key = name.toLowerCase();
+  if (state.master[key]) {
+    showToast(`"${name}" ya está en la lista`, true);
+    return;
+  }
+  if (!fb.available) {
+    state.master[key] = name;
+    persistLocal();
+    renderMaster();
+    showToast(`"${name}" añadido (local)`);
+    return;
+  }
+  await fb.set(fb.ref(fb.db, dbPath(`master/items/${key}`)), name);
+  showToast(`"${name}" añadido`);
+}
+
+async function removeFromMaster(key) {
+  const name = state.master[key];
+  if (!fb.available) {
+    delete state.master[key];
+    persistLocal();
+    renderMaster();
+    return;
+  }
+  await fb.remove(fb.ref(fb.db, dbPath(`master/items/${key}`)));
+  showToast(`"${name}" eliminado`);
+}
+
+async function startShopping() {
+  if (Object.keys(state.active).length > 0) return;
+  if (Object.keys(state.master).length === 0) {
+    showToast('Añade productos primero a la Maestra', true);
+    switchView('master');
+    return;
+  }
+  const items = {};
+  const ts = Date.now();
+  for (const k of Object.keys(state.master)) {
+    items[k] = { name: state.master[k], inCart: false, ts };
+  }
+  if (!fb.available) {
+    state.active = items;
+    persistLocal();
+    renderShop();
+    showToast(`Compra iniciada (local): ${Object.keys(items).length}`);
+    return;
+  }
+  await fb.set(fb.ref(fb.db, dbPath('active/items')), items);
+  showToast(`Compra iniciada: ${Object.keys(items).length} productos`);
+}
+
+async function toggleInCart(key) {
+  const item = state.active[key];
+  if (!item) return;
+  const next = { ...item, inCart: !item.inCart, ts: Date.now() };
+  if (!fb.available) {
+    state.active[key] = next;
+    persistLocal();
+    renderShop();
+    return;
+  }
+  await fb.update(fb.ref(fb.db, dbPath('active/items')), { [key]: next });
+}
+
+async function endShopping() {
+  if (!fb.available) {
+    state.active = {};
+    persistLocal();
+    renderShop();
+    showToast('Compra finalizada (local)');
+    return;
+  }
+  await fb.set(fb.ref(fb.db, dbPath('active/items')), null);
+  showToast('Compra finalizada');
+}
+
+async function deleteList() {
+  if (!fb.available) {
+    state.master = {}; state.active = {};
+    persistLocal();
+    render();
+    showToast('Lista borrada (local)');
+    return;
+  }
+  await fb.remove(fb.ref(fb.db, dbPath('')));
+  localStorage.removeItem(`lista-cache-${state.key}`);
+  showToast('Lista borrada del servidor');
+}
+
+// ============================================================
+// RENDER
+// ============================================================
 
 function render() {
   renderShop();
   renderMaster();
+  renderSyncStatus();
 }
 
 function renderShop() {
@@ -40,33 +254,37 @@ function renderShop() {
   const emptyState = $('shop-empty-state');
   const progress = $('shop-progress');
 
+  if (!list) return;
   list.innerHTML = '';
 
-  const inActive = state.active.length > 0;
+  const activeKeys = Object.keys(state.active);
+  const inActive = activeKeys.length > 0;
 
-  // Toggle entre lista activa y empty-state
   emptyState.hidden = inActive;
   activeBox.hidden = !inActive;
   progress.hidden = !inActive;
 
   if (!inActive) {
-    // Empty state: ¿hay productos en maestra para ofrecer iniciar compra?
     const mini = $('empty-master-status');
     const miniCount = $('mini-count');
-    if (state.master.length === 0) {
+    const mCount = Object.keys(state.master).length;
+    if (mCount === 0) {
       mini.hidden = true;
     } else {
       mini.hidden = false;
-      miniCount.textContent = `${state.master.length} productos en la Maestra`;
+      miniCount.textContent = `${mCount} productos en la Maestra`;
     }
     return;
   }
 
-  empty.hidden = state.active.length > 0;
+  empty.hidden = true;
 
-  state.active.forEach((item, idx) => {
+  const sorted = activeKeys.map(k => ({ k, ...state.active[k] })).sort((a, b) => (a.ts||0) - (b.ts||0));
+
+  sorted.forEach((item) => {
     const li = document.createElement('li');
     li.className = item.inCart ? 'done' : '';
+    li.dataset.key = item.k;
     li.innerHTML = `
       <div class="body">
         <span class="checkbox-circle">✓</span>
@@ -74,13 +292,12 @@ function renderShop() {
       </div>
     `;
     li.querySelector('.name').textContent = item.name;
-    li.addEventListener('click', () => toggleInCart(idx));
+    li.addEventListener('click', () => toggleInCart(item.k));
     list.appendChild(li);
   });
 
-  // Progress
-  const total = state.active.length;
-  const done = state.active.filter(x => x.inCart).length;
+  const total = activeKeys.length;
+  const done = sorted.filter(x => x.inCart).length;
   $('progress-pill').textContent = `${done} / ${total}`;
   $('progress-fill').style.width = total ? `${(done / total) * 100}%` : '0%';
   $('pending-counter').textContent = `${total - done} pendientes`;
@@ -91,16 +308,26 @@ function renderMaster() {
   const list = $('master-list');
   const empty = $('master-empty');
   const counter = $('master-counter');
-  list.innerHTML = '';
-  counter.textContent = `${state.master.length} producto${state.master.length === 1 ? '' : 's'} guardado${state.master.length === 1 ? '' : 's'}`;
+  const storageSubtitle = $('storage-subtitle');
+  if (!list) return;
 
-  if (state.master.length === 0) {
+  list.innerHTML = '';
+  const keys = Object.keys(state.master);
+  const count = keys.length;
+
+  counter.textContent = `${count} producto${count === 1 ? '' : 's'} guardado${count === 1 ? '' : 's'}`;
+  if (storageSubtitle) storageSubtitle.textContent = `Clave activa: ${state.key || '—'}`;
+
+  if (count === 0) {
     empty.hidden = false;
     return;
   }
   empty.hidden = true;
 
-  state.master.forEach((name, idx) => {
+  keys.sort((a, b) => state.master[a].localeCompare(state.master[b], 'es'));
+
+  keys.forEach((k) => {
+    const name = state.master[k];
     const li = document.createElement('li');
     li.innerHTML = `
       <div class="body">
@@ -111,86 +338,126 @@ function renderMaster() {
     li.querySelector('.name').textContent = name;
     li.querySelector('.remove').addEventListener('click', (e) => {
       e.stopPropagation();
-      removeFromMaster(idx);
+      confirmDialog(`¿Borrar "${name}" de la lista maestra?`, () => removeFromMaster(k));
     });
     list.appendChild(li);
   });
 }
 
-// ===================== ACCIONES =====================
-
-function addToMaster(name) {
-  name = name.trim();
-  if (!name) return;
-  if (state.master.some(n => n.toLowerCase() === name.toLowerCase())) {
-    showToast(`"${name}" ya está en la lista`, true);
-    return;
-  }
-  state.master.push(name);
-  save();
-  renderMaster();
-  showToast(`"${name}" añadido a la Maestra`);
-}
-
-function removeFromMaster(idx) {
-  const name = state.master[idx];
-  confirmDialog(`¿Borrar "${name}" de la lista maestra?`, () => {
-    state.master.splice(idx, 1);
-    save();
-    renderMaster();
-    showToast(`"${name}" eliminado`);
-  });
-}
-
-function startShopping() {
-  if (state.active.length > 0) return;
-  if (state.master.length === 0) {
-    showToast('Añade productos primero a la Maestra', true);
-    switchView('master');
-    return;
-  }
-  state.active = state.master.map(name => ({ name, inCart: false }));
-  save();
-  renderShop();
-  showToast('Compra iniciada: ' + state.active.length + ' productos');
-}
-
-function toggleInCart(idx) {
-  state.active[idx].inCart = !state.active[idx].inCart;
-  save();
-  renderShop();
-}
-
-function endShopping() {
-  confirmDialog(
-    `¿Terminar compra? Se borrarán los ${state.active.length} productos de la lista activa.`,
-    () => {
-      state.active = [];
-      save();
-      renderShop();
-      showToast('Compra finalizada');
-    }
-  );
-}
-
-// ===================== TABS =====================
+// ============================================================
+// TABS
+// ============================================================
 
 let currentView = 'shop';
 function switchView(target) {
   currentView = target;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view === target));
-  document.querySelectorAll('.view').forEach(v => v.hidden = true);
+  document.querySelectorAll('.view').forEach(v => { if (v.closest('#app-shell')) v.hidden = true; });
   $(`view-${target}`).hidden = false;
+  render();
 }
 
 document.querySelectorAll('.tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    switchView(btn.dataset.view);
-    render();
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+
+// ============================================================
+// KEY SCREEN
+// ============================================================
+
+let keyMode = 'join';
+let pendingCreatedKey = null;
+
+function showKeyScreen() {
+  $('app-shell').hidden = true;
+  $('view-key').hidden = false;
+  $('key-created').hidden = true;
+  $('key-error').hidden = true;
+  $('key-input').value = state.key || '';
+  $('key-input').focus();
+}
+
+function showApp() {
+  $('view-key').hidden = true;
+  $('app-shell').hidden = false;
+  render();
+}
+
+$('mode-join').addEventListener('click', () => {
+  keyMode = 'join';
+  $('mode-join').classList.add('active');
+  $('mode-create').classList.remove('active');
+  $('key-title').textContent = 'Conectar a una lista';
+  $('key-text').textContent = 'Pega la clave compartida que te pasó tu pareja.';
+  $('key-input').placeholder = 'Ej: compras-molina-2026';
+  $('key-submit').textContent = 'Conectar';
+  $('key-created').hidden = true;
+  $('key-input').value = '';
+  $('key-error').hidden = true;
+});
+
+$('mode-create').addEventListener('click', () => {
+  keyMode = 'create';
+  $('mode-create').classList.add('active');
+  $('mode-join').classList.remove('active');
+  $('key-title').textContent = 'Crear una lista nueva';
+  $('key-text').textContent = 'Generaremos una clave. Compártela con tu pareja para que se conecte.';
+  $('key-input').placeholder = 'Personaliza la clave (opcional)';
+  $('key-submit').textContent = 'Crear y conectar';
+  $('key-created').hidden = true;
+  $('key-input').value = '';
+  $('key-error').hidden = true;
+  pendingCreatedKey = null;
+});
+
+$('key-submit').addEventListener('click', async () => {
+  const raw = $('key-input').value.trim();
+  const finalKey = sanitizeKey(raw || (keyMode === 'create' ? generateKey() : ''));
+  if (!finalKey) {
+    $('key-error').textContent = 'La clave no puede estar vacía.';
+    $('key-error').hidden = false;
+    return;
+  }
+
+  if (keyMode === 'create') {
+    if (!pendingCreatedKey) {
+      pendingCreatedKey = finalKey;
+      $('key-display').textContent = finalKey;
+      $('key-created').hidden = false;
+      $('key-submit').textContent = 'Entrar a la lista';
+      return;
+    }
+    await setKey(pendingCreatedKey);
+    showApp();
+  } else {
+    await setKey(finalKey);
+    showApp();
+  }
+});
+
+$('copy-key').addEventListener('click', () => {
+  const k = $('key-display').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(k).then(() => showToast('Clave copiada'));
+  } else {
+    showToast(k);
+  }
+});
+
+$('btn-change-key').addEventListener('click', () => {
+  confirmDialog('¿Cambiar de lista? Te desconectarás de la actual.', () => {
+    localStorage.removeItem(KEY_STORAGE);
+    state.key = null;
+    state.master = {};
+    state.active = {};
+    pendingCreatedKey = null;
+    showKeyScreen();
   });
 });
 
-// ===================== FORM (Maestra) =====================
+// ============================================================
+// FORM / BUTTONS
+// ============================================================
 
 $('add-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -203,10 +470,11 @@ $('add-form').addEventListener('submit', (e) => {
 $('btn-start-shop').addEventListener('click', startShopping);
 $('btn-go-master').addEventListener('click', () => switchView('master'));
 
-// ===================== IMPORT / EXPORT / RESET =====================
-
 $('btn-export').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({
+    master: state.master,
+    active: state.active
+  }, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -216,41 +484,13 @@ $('btn-export').addEventListener('click', () => {
   showToast('Lista exportada');
 });
 
-$('btn-import').addEventListener('click', () => $('import-file').click());
-$('import-file').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(reader.result);
-      if (!Array.isArray(data.master) || !Array.isArray(data.active)) throw new Error('formato');
-      confirmDialog('¿Reemplazar la lista actual con los datos importados?', () => {
-        state.master = data.master;
-        state.active = data.active;
-        save();
-        render();
-        showToast('Lista importada');
-      });
-    } catch (err) {
-      showToast('Archivo no válido', true);
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-});
-
 $('btn-reset').addEventListener('click', () => {
-  confirmDialog('Esto borrará TODOS los datos. ¿Seguro?', () => {
-    localStorage.removeItem(STORAGE_KEY);
-    state.master = [];
-    state.active = [];
-    render();
-    showToast('Todos los datos eliminados');
-  });
+  confirmDialog('¿Borrar esta lista compartida? Tu pareja también la perderá.', () => deleteList());
 });
 
-// ===================== DIALOG =====================
+// ============================================================
+// DIALOG / TOAST
+// ============================================================
 
 const dialog = $('confirm-dialog');
 function confirmDialog(text, onOk) {
@@ -264,8 +504,6 @@ function confirmDialog(text, onOk) {
   ok.addEventListener('click', handler);
 }
 
-// ===================== TOAST =====================
-
 let toastTimeout;
 function showToast(msg, isError = false) {
   const toast = $('toast');
@@ -277,10 +515,31 @@ function showToast(msg, isError = false) {
   toastTimeout = setTimeout(() => { toast.hidden = true; }, 2500);
 }
 
-// ===================== INIT =====================
+// ============================================================
+// INIT
+// ============================================================
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-render();
+(async function main() {
+  if (state.key) {
+    const cached = loadLocalCache();
+    if (cached) {
+      state.master = cached.master || {};
+      state.active = cached.active || {};
+    }
+  }
+
+  const fbOk = await initFirebase();
+  if (fbOk && state.key) {
+    await connectToFirebase();
+    showApp();
+  } else if (!state.key) {
+    showKeyScreen();
+  } else {
+    showApp();
+  }
+  render();
+})();
