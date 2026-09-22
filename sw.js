@@ -1,5 +1,5 @@
 // Service Worker mínimo: cache-first para que la app funcione offline.
-const CACHE = 'lista-compra-v1';
+const CACHE = 'lista-compra-v2';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {
