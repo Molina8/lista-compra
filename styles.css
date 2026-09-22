@@ -71,7 +71,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding-bottom: 84px; /* bottom-nav + safe area */
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   padding-top: env(safe-area-inset-top);
 }
 
@@ -957,10 +957,17 @@ dialog menu {
 }
 .pick-search-wrap input::placeholder { color: var(--outline); }
 .pick-cta {
-  position: sticky;
-  bottom: 76px;
-  z-index: 8;
-  background: linear-gradient(to top, var(--background) 70%, rgba(252,249,248,0));
-  padding: 16px 0 8px;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 640px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  padding: 12px 16px 10px;
+  box-sizing: border-box;
+  background: linear-gradient(to top, var(--background) 75%, transparent);
+  pointer-events: none;
 }
-#shop-pick .list { padding-bottom: 8px; }
+.pick-cta .btn { pointer-events: auto; }
+#shop-pick .list { padding-bottom: 88px; }
