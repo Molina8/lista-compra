@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#5b8c5a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Compra" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Lista de la compra</title>
+</head>
+<body>
+  <header>
+    <h1>🛒 Lista de la compra</h1>
+    <p id="status">—</p>
+  </header>
+
+  <main>
+    <!-- Vista: comprar (la que se usa en el súper) -->
+    <section id="view-shop" class="view">
+      <div class="actions">
+        <button id="btn-end-shop" class="btn-secondary" hidden>Terminar compra</button>
+      </div>
+      <ul id="shop-list" class="checklist"></ul>
+      <p id="shop-empty" class="empty" hidden>No hay nada en la lista. Añade productos en la pestaña <strong>Maestra</strong>.</p>
+    </section>
+
+    <!-- Vista: lista maestra (productos disponibles) -->
+    <section id="view-master" class="view" hidden>
+      <form id="add-form" class="add-form">
+        <input id="add-input" type="text" placeholder="Añadir producto…" autocomplete="off" required />
+        <button type="submit">+</button>
+      </form>
+      <ul id="master-list" class="plain-list"></ul>
+      <p id="master-empty" class="empty" hidden>Lista vacía. Añade el primer producto arriba.</p>
+    </section>
+
+    <!-- Vista: ajustes -->
+    <section id="view-settings" class="view" hidden>
+      <h2>Datos</h2>
+      <p class="hint">Todo se guarda solo en este móvil. Si quieres pasar la lista a otro dispositivo, exporta e importa el archivo JSON.</p>
+      <div class="row">
+        <button id="btn-export">Exportar</button>
+        <button id="btn-import" class="btn-secondary">Importar</button>
+        <input type="file" id="import-file" accept="application/json" hidden />
+      </div>
+      <h2 class="danger">Zona peligrosa</h2>
+      <button id="btn-reset" class="btn-danger">Borrar todo y empezar de cero</button>
+    </section>
+
+    <nav id="tabs">
+      <button data-view="shop" class="tab active">Comprar</button>
+      <button data-view="master" class="tab">Maestra</button>
+      <button data-view="settings" class="tab">Ajustes</button>
+    </nav>
+  </main>
+
+  <dialog id="confirm-dialog">
+    <form method="dialog">
+      <p id="confirm-text">¿Seguro?</p>
+      <menu>
+        <button value="cancel">Cancelar</button>
+        <button id="confirm-ok" value="ok">Aceptar</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+:root {
+  --bg: #faf8f3;
+  --surface: #ffffff;
+  --text: #2a2a2a;
+  --muted: #888;
+  --accent: #5b8c5a;
+  --accent-dark: #3f6b3e;
+  --danger: #b04a4a;
+  --border: #e3e0d8;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-bottom: 80px; /* espacio para la nav inferior */
+  padding-top: env(safe-area-inset-top);
+}
+
+header {
+  padding: 20px 20px 8px;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  color: var(--accent-dark);
+}
+
+#status {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+main {
+  flex: 1;
+  padding: 12px 20px 20px;
+}
+
+.view { animation: fade 0.15s ease-out; }
+
+@keyframes fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.add-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.add-form input {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: 17px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  outline: none;
+}
+
+.add-form input:focus { border-color: var(--accent); }
+
+.add-form button {
+  width: 48px;
+  font-size: 22px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.checklist, .plain-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.checklist li, .plain-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  margin-bottom: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.checklist li:active, .plain-list li:active { background: #f0eee7; }
+
+.checklist li .check {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.checklist li.done .check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checklist li.done .check::after {
+  content: "✓";
+  color: white;
+  font-weight: bold;
+}
+
+.checklist li.done .name {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.name { flex: 1; }
+
+.plain-list li .remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.plain-list li .remove:active { color: var(--danger); }
+
+.empty {
+  text-align: center;
+  color: var(--muted);
+  margin-top: 40px;
+}
+
+.hint {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+button {
+  font-family: inherit;
+  font-size: 16px;
+  padding: 12px 18px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+button:active { transform: scale(0.97); }
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-danger {
+  background: var(--danger);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+h2 {
+  font-size: 16px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 24px 0 12px;
+}
+
+h2.danger { color: var(--danger); }
+
+nav#tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab {
+  flex: 1;
+  background: none;
+  color: var(--muted);
+  padding: 14px 0;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+dialog {
+  border: none;
+  border-radius: var(--radius);
+  padding: 20px;
+  max-width: 320px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+dialog::backdrop { background: rgba(0,0,0,0.4); }
+
+dialog menu {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+dialog button {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+dialog button[value="ok"] {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
