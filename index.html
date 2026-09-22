@@ -80,12 +80,19 @@
               <span class="section-subtitle" id="pick-counter">0 seleccionados</span>
             </div>
           </div>
-          <p class="empty-text" style="margin: 8px 0 16px;">Toca los productos que necesitas reponer. La compra activa solo incluirá estos.</p>
+          <p class="empty-text pick-hint">Toca los que falten. El buscador evita el scroll.</p>
+          <div class="pick-search-wrap">
+            <span class="pick-search-icon">⌕</span>
+            <input id="pick-search" type="search" placeholder="Buscar producto…" autocomplete="off" />
+          </div>
           <ul id="pick-list" class="list"></ul>
           <p id="pick-empty" class="empty" hidden>Tu catálogo está vacío. Añade productos en la pestaña <strong>Catálogo</strong>.</p>
-          <button id="btn-start-shop" class="btn btn-primary btn-block btn-lg" disabled>
-            <span>🛒</span><span>Empezar compra (0)</span>
-          </button>
+          <p id="pick-no-results" class="empty" hidden>Ningún producto coincide con la búsqueda.</p>
+          <div class="pick-cta">
+            <button id="btn-start-shop" class="btn btn-primary btn-block btn-lg" disabled>
+              <span>🛒</span><span>Empezar compra (0)</span>
+            </button>
+          </div>
         </div>
 
         <div id="shop-empty-state" class="card empty-card" hidden>

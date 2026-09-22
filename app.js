@@ -55,6 +55,7 @@ const state = {
   master: {},
   active: {},
   pickSelected: {},
+  pickQuery: '',
   connected: false
 };
 
@@ -201,6 +202,7 @@ async function startShoppingFromPick() {
     items[k] = { name: state.pickSelected[k], inCart: false, ts };
   }
   state.pickSelected = {};
+  state.pickQuery = '';
 
   if (!fb.available) {
     state.active = items;
@@ -321,13 +323,21 @@ function renderPick() {
   const counter = $('pick-counter');
   const startBtn = $('btn-start-shop');
   const empty = $('pick-empty');
+  const noResults = $('pick-no-results');
+  const search = $('pick-search');
   if (!list) return;
+
+  if (search && search.value !== state.pickQuery) {
+    search.value = state.pickQuery;
+  }
 
   list.innerHTML = '';
   const masterKeys = Object.keys(state.master);
+  const q = (state.pickQuery || '').trim().toLowerCase();
 
   if (masterKeys.length === 0) {
     empty.hidden = false;
+    if (noResults) noResults.hidden = true;
     list.hidden = true;
     counter.textContent = '0 seleccionados';
     startBtn.disabled = true;
@@ -337,8 +347,14 @@ function renderPick() {
   list.hidden = false;
 
   const sortedKeys = masterKeys.slice().sort((a, b) => state.master[a].localeCompare(state.master[b], 'es'));
+  const filtered = q
+    ? sortedKeys.filter(k => state.master[k].toLowerCase().includes(q))
+    : sortedKeys;
 
-  sortedKeys.forEach((k) => {
+  if (noResults) noResults.hidden = filtered.length > 0;
+  list.hidden = filtered.length === 0;
+
+  filtered.forEach((k) => {
     const name = state.master[k];
     const selected = !!state.pickSelected[k];
     const li = document.createElement('li');
@@ -527,6 +543,10 @@ $('add-form').addEventListener('submit', (e) => {
 });
 
 $('btn-start-shop').addEventListener('click', startShoppingFromPick);
+$('pick-search').addEventListener('input', (e) => {
+  state.pickQuery = e.target.value;
+  renderPick();
+});
 $('btn-finish-shop').addEventListener('click', () => {
   const total = Object.keys(state.active).length;
   const done = Object.values(state.active).filter(x => x.inCart).length;
