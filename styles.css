@@ -349,6 +349,28 @@ body {
 }
 .list li .remove:hover { background: var(--danger-container); color: var(--danger); }
 
+/* Catálogo: botón para añadir/quitar de la lista de la compra */
+.list li .add-to-lista {
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+  color: var(--outline);
+}
+.list li .add-to-lista:hover { background: var(--primary-container); color: var(--primary); }
+.list li .add-to-lista:active { transform: scale(0.92); }
+.list li .add-to-lista.in-cart {
+  color: var(--primary);
+  background: var(--primary-container);
+}
+
 /* Shop: checked state */
 .list li.done .checkbox-circle {
   background: var(--primary);

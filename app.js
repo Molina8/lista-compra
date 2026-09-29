@@ -120,15 +120,17 @@ async function connectToFirebase() {
       renderShop();
     });
     fb.onValue(fb.ref(fb.db, dbPath('lista/items')), (snap) => {
-      state.lista = snap.val() || {};
-      persistLocal();
-      renderShop();
-    });
-    fb.onValue(fb.ref(fb.db, dbPath('lista/shopping')), (snap) => {
-      state.shopping = !!snap.val();
-      persistLocal();
-      renderShop();
-    });
+          state.lista = snap.val() || {};
+          persistLocal();
+          renderShop();
+          renderMaster();
+        });
+        fb.onValue(fb.ref(fb.db, dbPath('lista/shopping')), (snap) => {
+          state.shopping = !!snap.val();
+          persistLocal();
+          renderShop();
+          renderMaster();
+        });
     fb.onValue(fb.ref(fb.db, '.info/connected'), (snap) => {
       state.connected = !!snap.val();
       renderSyncStatus();
@@ -461,7 +463,9 @@ function renderMaster() {
   const keys = Object.keys(state.master);
   const count = keys.length;
 
-  counter.textContent = `${count} producto${count === 1 ? '' : 's'} guardado${count === 1 ? '' : 's'}`;
+  // Cuántos están en la lista de la compra ahora mismo
+  const inLista = Object.keys(state.lista).length;
+  counter.textContent = `${count} producto${count === 1 ? '' : 's'} guardado${count === 1 ? '' : 's'}${inLista > 0 ? ` · ${inLista} en la lista` : ''}`;
   if (storageSubtitle) storageSubtitle.textContent = `Clave activa: ${state.key || '—'}`;
 
   if (count === 0) {
@@ -474,14 +478,30 @@ function renderMaster() {
 
   keys.forEach((k) => {
     const name = state.master[k];
+    const inCart = !!state.lista[k];
     const li = document.createElement('li');
     li.innerHTML = `
       <div class="body">
         <span class="name"></span>
       </div>
+      <button class="add-to-lista" aria-label="${inCart ? 'Quitar de la lista' : 'Añadir a la lista'}" title="${inCart ? 'Quitar de la lista' : 'Añadir a la lista'}">${inCart ? '✓' : '🛒'}</button>
       <button class="remove" aria-label="Borrar">×</button>
     `;
     li.querySelector('.name').textContent = name;
+    const addBtn = li.querySelector('.add-to-lista');
+    addBtn.classList.toggle('in-cart', inCart);
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.shopping) {
+        showToast('Finaliza la compra actual para modificar la lista', true);
+        return;
+      }
+      if (inCart) {
+        removeFromLista(k);
+      } else {
+        addToLista(k);
+      }
+    });
     li.querySelector('.remove').addEventListener('click', (e) => {
       e.stopPropagation();
       confirmDialog(`¿Borrar "${name}" del catálogo?`, () => removeFromMaster(k));
