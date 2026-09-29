@@ -53,60 +53,60 @@
 
     <main class="container">
       <section id="view-shop" class="view">
-        <div id="shop-active" hidden>
-          <div id="shop-progress" class="card progress">
-            <div class="progress-row">
-              <div class="progress-meta">
-                <span class="progress-label">Progreso</span>
+              <div id="shop-content" hidden>
+                <div id="shop-edit" hidden>
+                  <div class="section-header">
+                    <div>
+                      <span class="section-title">Tu lista de la compra</span>
+                      <span class="section-subtitle" id="edit-counter">0 productos</span>
+                    </div>
+                  </div>
+                  <div class="pick-search-wrap">
+                                <span class="pick-search-icon">⌕</span>
+                                <input id="add-search" type="search" placeholder="Buscar en el catálogo…" autocomplete="off" />
+                              </div>
+                              <ul id="lista-edit" class="list"></ul>
+                              <ul id="add-list" class="list"></ul>
+                              <p id="add-empty" class="empty" hidden>Tu catálogo está vacío. Añade productos en la pestaña <strong>Catálogo</strong>.</p>
+                              <p id="add-no-results" class="empty" hidden>Ningún producto coincide con la búsqueda.</p>
+                              <button id="btn-start-shop" class="btn btn-primary btn-block btn-lg" disabled>
+                                <span>🛒</span><span>Iniciar compra</span>
+                              </button>
+                            </div>
+
+                <div id="shop-active" hidden>
+                  <div id="shop-progress" class="card progress">
+                    <div class="progress-row">
+                      <div class="progress-meta">
+                        <span class="progress-label">Progreso</span>
+                      </div>
+                      <span class="pill pill-secondary" id="progress-pill">0 / 0</span>
+                    </div>
+                    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+                    <div class="progress-counts">
+                      <span id="pending-counter">0 pendientes</span>
+                      <span id="cart-counter">0 en carrito</span>
+                    </div>
+                  </div>
+                  <button id="btn-finish-shop" class="btn btn-primary btn-block btn-lg finish-btn">
+                    <span>✓</span><span>Finalizar compra</span>
+                  </button>
+                  <ul id="shop-list" class="list"></ul>
+                </div>
+
+                <div id="shop-empty-state" class="card empty-card" hidden>
+                  <div class="empty-illustration">
+                    <div class="empty-ring">
+                      <div class="empty-basket">🧺</div>
+                    </div>
+                    <div class="empty-badge">✓</div>
+                  </div>
+                  <h2 class="empty-title">Tu lista está vacía</h2>
+                  <p class="empty-text">Usa el buscador para añadir productos del catálogo. Apúntalos poco a poco entre días y cuando vayas al súper, pulsa <strong>Iniciar compra</strong>.</p>
+                  <button class="btn btn-primary btn-lg" id="btn-go-master">Ir al catálogo</button>
+                </div>
               </div>
-              <span class="pill pill-secondary" id="progress-pill">0 / 0</span>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-            <div class="progress-counts">
-              <span id="pending-counter">0 pendientes</span>
-              <span id="cart-counter">0 en carrito</span>
-            </div>
-          </div>
-          <button id="btn-finish-shop" class="btn btn-primary btn-block btn-lg finish-btn">
-            <span>✓</span><span>Finalizar compra</span>
-          </button>
-          <ul id="shop-list" class="list"></ul>
-        </div>
-
-        <div id="shop-pick" hidden>
-          <div class="section-header">
-            <div>
-              <span class="section-title">¿Qué vas a comprar?</span>
-              <span class="section-subtitle" id="pick-counter">0 seleccionados</span>
-            </div>
-          </div>
-          <p class="empty-text pick-hint">Toca los que falten. El buscador evita el scroll.</p>
-          <div class="pick-search-wrap">
-            <span class="pick-search-icon">⌕</span>
-            <input id="pick-search" type="search" placeholder="Buscar producto…" autocomplete="off" />
-          </div>
-          <ul id="pick-list" class="list"></ul>
-          <p id="pick-empty" class="empty" hidden>Tu catálogo está vacío. Añade productos en la pestaña <strong>Catálogo</strong>.</p>
-          <p id="pick-no-results" class="empty" hidden>Ningún producto coincide con la búsqueda.</p>
-          <div class="pick-cta">
-            <button id="btn-start-shop" class="btn btn-primary btn-block btn-lg" disabled>
-              <span>🛒</span><span>Empezar compra (0)</span>
-            </button>
-          </div>
-        </div>
-
-        <div id="shop-empty-state" class="card empty-card" hidden>
-          <div class="empty-illustration">
-            <div class="empty-ring">
-              <div class="empty-basket">🧺</div>
-            </div>
-            <div class="empty-badge">✓</div>
-          </div>
-          <h2 class="empty-title">Tu catálogo está vacío</h2>
-          <p class="empty-text">Añade los productos que sueles tener en casa en la pestaña <strong>Catálogo</strong>. Cuando vayas al súper, elige solo los que falten.</p>
-          <button class="btn btn-primary btn-lg" id="btn-go-master">Ir al catálogo</button>
-        </div>
-      </section>
+            </section>
 
       <section id="view-master" class="view" hidden>
         <div class="section-header">

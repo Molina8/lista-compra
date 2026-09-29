@@ -4,10 +4,11 @@ PWA minimalista para la compra del súper. Sin servidor, sin cuentas, sin precio
 
 ## Cómo se usa
 
-1. **Maestra** — añade los productos que sueles comprar (lechuga, leche, papel higiénico…).
-2. **Comprar** — abre esta pestaña cuando llegues al súper. La app clona la lista maestra en una *compra activa*.
-3. Marca cada producto con un toque cuando lo metes en el carrito.
-4. Al llegar a casa, pulsa **Terminar compra** y la lista activa se borra.
+1. **Catálogo** — añade los productos que sueles comprar (lechuga, leche, papel higiénico…).
+2. **Tu lista** — entra en la pestaña *Comprar*. La lista única está siempre ahí, vacía de inicio.
+3. Ve apuntando productos con el buscador a lo largo de los días: un día leche, otro día papel higiénico… La lista **persiste**.
+4. Cuando vayas al súper, pulsa **Iniciar compra**. La app entra en modo *check*: marca cada producto con un toque cuando lo metas en el carrito.
+5. Al llegar a casa, pulsa **Finalizar compra**. La lista única se vacía, lista para empezar la siguiente.
 
 ## Cómo se instala
 
