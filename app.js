@@ -370,91 +370,49 @@ function renderActive() {
 }
 
 function renderEdit() {
-  const list = $('add-list');
-    const counter = $('edit-counter');
-    const startBtn = $('btn-start-shop');
-    const empty = $('add-empty');
-    const noResults = $('add-no-results');
-    const search = $('add-search');
-    const ulLista = $('lista-edit');
-    if (!list) return;
+  const counter = $('edit-counter');
+  const startBtn = $('btn-start-shop');
+  const search = $('add-search');
+  const ulLista = $('lista-edit');
+  const emptyLista = $('lista-edit-empty');
+  if (!ulLista) return;
 
   if (search && search.value !== state.addQuery) {
     search.value = state.addQuery;
   }
 
-  // Lista persistente (con botón ×). La pintamos en #shop-list cuando estamos en modo editar.
-  if (ulLista) {
-    ulLista.innerHTML = '';
-    const keys = Object.keys(state.lista);
-    keys.sort((a, b) => state.lista[a].name.localeCompare(state.lista[b].name, 'es'));
-    keys.forEach((k) => {
-      const item = state.lista[k];
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <div class="body">
-          <span class="name"></span>
-        </div>
-        <button class="remove" aria-label="Borrar">×</button>
-      `;
-      li.querySelector('.name').textContent = item.name;
-      li.querySelector('.remove').addEventListener('click', (e) => {
-        e.stopPropagation();
-        removeFromLista(k);
-      });
-      ulLista.appendChild(li);
+  // Lista persistente (con botón ×). Solo lo que el usuario añadió desde el catálogo.
+  ulLista.innerHTML = '';
+  const keys = Object.keys(state.lista);
+  keys.sort((a, b) => state.lista[a].name.localeCompare(state.lista[b].name, 'es'));
+  keys.forEach((k) => {
+    const item = state.lista[k];
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="body">
+        <span class="name"></span>
+      </div>
+      <button class="remove" aria-label="Borrar">×</button>
+    `;
+    li.querySelector('.name').textContent = item.name;
+    li.querySelector('.remove').addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeFromLista(k);
     });
-  }
+    ulLista.appendChild(li);
+  });
 
-  // Selector del catálogo (para añadir). Los que ya están en la lista aparecen como ✓ no clickables.
-  list.innerHTML = '';
-  const masterKeys = Object.keys(state.master);
-  const q = (state.addQuery || '').trim().toLowerCase();
+  if (emptyLista) emptyLista.hidden = keys.length > 0;
 
-  if (masterKeys.length === 0) {
-    empty.hidden = false;
-    if (noResults) noResults.hidden = true;
-    list.hidden = true;
-  } else {
-    empty.hidden = true;
-    list.hidden = false;
-
-    const sortedKeys = masterKeys.slice().sort((a, b) => state.master[a].localeCompare(state.master[b], 'es'));
-    const filtered = q
-      ? sortedKeys.filter(k => state.master[k].toLowerCase().includes(q))
-      : sortedKeys;
-
-    if (noResults) noResults.hidden = filtered.length > 0;
-    if (filtered.length === 0) list.hidden = true;
-
-    filtered.forEach((k) => {
-      const name = state.master[k];
-      const already = !!state.lista[k];
-      const li = document.createElement('li');
-      li.className = already ? 'picked' : '';
-      li.dataset.key = k;
-      li.innerHTML = `
-        <div class="body">
-          <span class="pick-check">${already ? '✓' : '+'}</span>
-          <span class="name"></span>
-        </div>
-      `;
-      li.querySelector('.name').textContent = name;
-      if (!already) {
-        li.addEventListener('click', () => addToLista(k));
-      }
-      list.appendChild(li);
-    });
-  }
-
-  const listaCount = Object.keys(state.lista).length;
+  const listaCount = keys.length;
   counter.textContent = `${listaCount} producto${listaCount === 1 ? '' : 's'}`;
   startBtn.disabled = listaCount === 0;
 }
 
 function renderMaster() {
   const list = $('master-list');
-  const empty = $('master-empty');
+  const empty = $('add-empty');
+  const noResults = $('add-no-results');
   const counter = $('master-counter');
   const storageSubtitle = $('storage-subtitle');
   if (!list) return;
@@ -470,13 +428,19 @@ function renderMaster() {
 
   if (count === 0) {
     empty.hidden = false;
+    if (noResults) noResults.hidden = true;
     return;
   }
   empty.hidden = true;
 
-  keys.sort((a, b) => state.master[a].localeCompare(state.master[b], 'es'));
+  const q = (state.addQuery || '').trim().toLowerCase();
+  const sorted = keys.slice().sort((a, b) => state.master[a].localeCompare(state.master[b], 'es'));
+  const filtered = q ? sorted.filter(k => state.master[k].toLowerCase().includes(q)) : sorted;
 
-  keys.forEach((k) => {
+  if (noResults) noResults.hidden = filtered.length > 0;
+  if (filtered.length === 0) return;
+
+  filtered.forEach((k) => {
     const name = state.master[k];
     const inCart = !!state.lista[k];
     const li = document.createElement('li');
@@ -637,7 +601,7 @@ $('add-form').addEventListener('submit', (e) => {
 $('btn-start-shop').addEventListener('click', startShopping);
 $('add-search').addEventListener('input', (e) => {
   state.addQuery = e.target.value;
-  renderEdit();
+  renderMaster();
 });
 $('btn-finish-shop').addEventListener('click', () => {
   const total = Object.keys(state.lista).length;
