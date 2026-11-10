@@ -332,7 +332,7 @@ body {
   white-space: nowrap;
 }
 
-/* Maestra: delete button */
+/* Maestra: delete button (discreto; la fila entera es la acción principal) */
 .list li .remove {
   width: 36px;
   height: 36px;
@@ -345,30 +345,50 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
 }
 .list li .remove:hover { background: var(--danger-container); color: var(--danger); }
+.list li .remove-master {
+  opacity: 0.45;
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+}
+.list li .remove-master:hover,
+.list li .remove-master:focus-visible { opacity: 1; }
 
-/* Catálogo: botón para añadir/quitar de la lista de la compra */
-.list li .add-to-lista {
-  width: 36px;
-  height: 36px;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  font-size: 18px;
+/* Fila crear producto nuevo */
+.list li.create-row {
+  background: var(--primary-tint);
+  border: 1px dashed var(--primary);
+}
+.list li.create-row .create-plus {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-container);
+  color: var(--primary-dark);
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
-  color: var(--outline);
+  flex-shrink: 0;
+  font-size: 18px;
+  font-weight: 600;
 }
-.list li .add-to-lista:hover { background: var(--primary-container); color: var(--primary); }
-.list li .add-to-lista:active { transform: scale(0.92); }
-.list li .add-to-lista.in-cart {
-  color: var(--primary);
-  background: var(--primary-container);
+.list li.create-row .create-label {
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+.list li.in-cart-locked {
+  opacity: 0.85;
+}
+.list li.in-cart-locked .pick-check {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.list li.in-cart-locked .pick-check::after {
+  content: "✓";
 }
 
 /* Shop: checked state */
@@ -944,9 +964,11 @@ dialog menu {
 
 /* ===================== PICK: buscador + CTA sticky ===================== */
 .pick-hint {
-  margin: 4px 0 8px;
+  margin: 0 0 12px;
+  padding: 0 4px;
   text-align: left;
   max-width: none;
+  font-size: 13px;
 }
 .pick-search-wrap {
   position: sticky;

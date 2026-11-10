@@ -19,6 +19,33 @@ const FIREBASE_CONFIG = {
 const KEY_STORAGE = 'lista-compra-key-v1';
 const $ = (id) => document.getElementById(id);
 
+function normalizeForSearch(str) {
+  return (str || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+}
+
+function listaAfterFinish(lista) {
+  const remaining = {};
+  for (const [k, item] of Object.entries(lista || {})) {
+    if (!item.inCart) {
+      remaining[k] = { name: item.name, inCart: false };
+    }
+  }
+  return remaining;
+}
+
+function masterKeyForName(name) {
+  return name.trim().toLowerCase();
+}
+
+function findMasterKeyByExactQuery(query) {
+  const nq = normalizeForSearch(query.trim());
+  if (!nq) return null;
+  for (const k of Object.keys(state.master)) {
+    if (normalizeForSearch(state.master[k]) === nq) return k;
+  }
+  return null;
+}
+
 // ============================================================
 // FIREBASE INIT
 // ============================================================
@@ -156,24 +183,56 @@ function renderSyncStatus() {
 
 function dbPath(subpath) { return `listas/${state.key}/${subpath}`; }
 
-async function addToMaster(nameRaw) {
-  const name = nameRaw.trim();
-  if (!name) return;
-  const key = name.toLowerCase();
-  if (state.master[key]) {
-    showToast(`"${name}" ya está en el catálogo`, true);
-    return;
+function clearCatalogSearch() {
+  state.addQuery = '';
+  const search = $('add-search');
+  if (search) {
+    search.value = '';
+    search.focus();
   }
+  renderMaster();
+}
+
+async function ensureInMaster(name) {
+  const key = masterKeyForName(name);
+  if (state.master[key]) return key;
   if (!fb.available) {
-    state.master[key] = name;
+    state.master[key] = name.trim();
     persistLocal();
     renderMaster();
     renderShop();
-    showToast(`"${name}" añadido al catálogo (local)`);
+  } else {
+    await fb.set(fb.ref(fb.db, dbPath(`master/items/${key}`)), name.trim());
+  }
+  return key;
+}
+
+async function createAndAddToLista(nameRaw) {
+  const name = nameRaw.trim();
+  if (!name) return;
+  const key = masterKeyForName(name);
+  if (state.lista[key]) {
+    showToast(`"${state.master[key] || name}" ya está en la lista`, true);
+    clearCatalogSearch();
     return;
   }
-  await fb.set(fb.ref(fb.db, dbPath(`master/items/${key}`)), name);
-  showToast(`"${name}" añadido al catálogo`);
+  await ensureInMaster(name);
+  await addToLista(key, { clearSearch: true, toastLabel: name.trim() });
+}
+
+async function toggleCatalogRow(key) {
+  const name = state.master[key];
+  if (state.lista[key]) {
+    if (state.shopping && state.lista[key].inCart) {
+      showToast(`"${name}" ya está en el carrito. Desmárcalo en Comprar para quitarlo.`, true);
+      return;
+    }
+    await removeFromLista(key);
+    showToast(`"${name}" quitado de la lista`);
+    renderMaster();
+    return;
+  }
+  await addToLista(key, { clearSearch: true });
 }
 
 async function removeFromMaster(key) {
@@ -189,26 +248,39 @@ async function removeFromMaster(key) {
   showToast(`"${name}" eliminado del catálogo`);
 }
 
-async function addToLista(key) {
+async function addToLista(key, opts = {}) {
   if (!state.master[key]) return;
-  if (state.lista[key]) return; // ya está en la lista
+  if (state.lista[key]) {
+    showToast(`"${state.master[key]}" ya está en la lista`, true);
+    if (opts.clearSearch) clearCatalogSearch();
+    return;
+  }
   const item = { name: state.master[key], inCart: false, ts: Date.now() };
   if (!fb.available) {
     state.lista[key] = item;
     persistLocal();
     renderShop();
-    return;
+    renderMaster();
+  } else {
+    await fb.update(fb.ref(fb.db, dbPath('lista/items')), { [key]: item });
   }
-  await fb.update(fb.ref(fb.db, dbPath('lista/items')), { [key]: item });
+  const label = opts.toastLabel || state.master[key];
+  showToast(`"${label}" añadido a la lista`);
+  if (opts.clearSearch) clearCatalogSearch();
+  else renderMaster();
 }
 
 async function removeFromLista(key) {
   if (!state.lista[key]) return;
-  if (state.shopping) return; // en modo compra no se puede borrar
+  if (state.shopping && state.lista[key].inCart) {
+    showToast(`"${state.lista[key].name}" ya está en el carrito. Desmárcalo en Comprar para quitarlo.`, true);
+    return;
+  }
   if (!fb.available) {
     delete state.lista[key];
     persistLocal();
     renderShop();
+    renderMaster();
     return;
   }
   await fb.remove(fb.ref(fb.db, dbPath(`lista/items/${key}`)));
@@ -251,21 +323,34 @@ async function toggleInCart(key) {
   await fb.update(fb.ref(fb.db, dbPath('lista/items')), { [key]: next });
 }
 
-// Finalizar compra = salir del modo compra Y vaciar la lista única.
+// Finalizar compra: quita los marcados; los pendientes permanecen con inCart false.
 async function finishShopping() {
   const count = Object.keys(state.lista).length;
   const done = Object.values(state.lista).filter(x => x.inCart).length;
+  const remaining = listaAfterFinish(state.lista);
+  const ts = Date.now();
+  for (const k of Object.keys(remaining)) {
+    remaining[k] = { ...remaining[k], ts };
+  }
+  const kept = Object.keys(remaining).length;
   if (!fb.available) {
-    state.lista = {};
+    state.lista = remaining;
     state.shopping = false;
     persistLocal();
     renderShop();
-    showToast(`Compra finalizada (local): ${done}/${count}`);
+    renderMaster();
+    const msg = kept
+      ? `Compra finalizada (local): ${done} comprados, ${kept} pendientes`
+      : `Compra finalizada (local): ${done} productos`;
+    showToast(msg);
     return;
   }
-  await fb.set(fb.ref(fb.db, dbPath('lista/items')), null);
+  await fb.set(fb.ref(fb.db, dbPath('lista/items')), kept ? remaining : null);
   await fb.set(fb.ref(fb.db, dbPath('lista/shopping')), false);
-  showToast(`Compra finalizada: ${done}/${count}`);
+  const msg = kept
+    ? `Compra finalizada: ${done} comprados, ${kept} pendientes`
+    : `Compra finalizada: ${done} productos`;
+  showToast(msg);
 }
 
 async function deleteList() {
@@ -333,7 +418,7 @@ function renderShop() {
     if (goBtn) goBtn.textContent = 'Ir al catálogo';
   } else {
     if (emptyTitle) emptyTitle.textContent = 'Tu lista está vacía';
-    if (emptyText) emptyText.innerHTML = 'Usa el buscador para añadir productos del catálogo. Apúntalos poco a poco entre días y cuando vayas al súper, pulsa <strong>Iniciar compra</strong>.';
+    if (emptyText) emptyText.innerHTML = 'En <strong>Catálogo</strong> busca o escribe un producto y tócalo para añadirlo. Cuando vayas al súper, pulsa <strong>Iniciar compra</strong>.';
     if (goBtn) goBtn.textContent = 'Ir al catálogo';
   }
 }
@@ -409,69 +494,121 @@ function renderEdit() {
   startBtn.disabled = listaCount === 0;
 }
 
+function shouldShowCreateRow(query) {
+  const trimmed = (query || '').trim();
+  if (!trimmed) return false;
+  return !findMasterKeyByExactQuery(trimmed);
+}
+
 function renderMaster() {
   const list = $('master-list');
   const empty = $('add-empty');
   const noResults = $('add-no-results');
   const counter = $('master-counter');
   const storageSubtitle = $('storage-subtitle');
+  const hint = $('catalog-hint');
   if (!list) return;
 
   list.innerHTML = '';
   const keys = Object.keys(state.master);
   const count = keys.length;
 
-  // Cuántos están en la lista de la compra ahora mismo
   const inLista = Object.keys(state.lista).length;
   counter.textContent = `${count} producto${count === 1 ? '' : 's'} guardado${count === 1 ? '' : 's'}${inLista > 0 ? ` · ${inLista} en la lista` : ''}`;
   if (storageSubtitle) storageSubtitle.textContent = `Clave activa: ${state.key || '—'}`;
 
-  if (count === 0) {
+  const qRaw = (state.addQuery || '').trim();
+  const qNorm = normalizeForSearch(qRaw);
+
+  if (count === 0 && !qRaw) {
     empty.hidden = false;
     if (noResults) noResults.hidden = true;
+    if (hint) hint.hidden = false;
     return;
   }
-  empty.hidden = true;
+  empty.hidden = count > 0 || !!qRaw;
+  if (hint) hint.hidden = !!qRaw;
 
-  const q = (state.addQuery || '').trim().toLowerCase();
   const sorted = keys.slice().sort((a, b) => state.master[a].localeCompare(state.master[b], 'es'));
-  const filtered = q ? sorted.filter(k => state.master[k].toLowerCase().includes(q)) : sorted;
+  const filtered = qNorm
+    ? sorted.filter(k => normalizeForSearch(state.master[k]).includes(qNorm))
+    : sorted;
 
-  if (noResults) noResults.hidden = filtered.length > 0;
-  if (filtered.length === 0) return;
+  const showCreate = shouldShowCreateRow(qRaw);
+  if (noResults) noResults.hidden = showCreate || filtered.length > 0 || !qRaw;
+
+  if (showCreate) {
+    const li = document.createElement('li');
+    li.className = 'create-row';
+    li.innerHTML = `
+      <div class="body">
+        <span class="create-plus">＋</span>
+        <span class="name create-label"></span>
+      </div>
+    `;
+    li.querySelector('.create-label').textContent = `Crear «${qRaw}» y añadir a la lista`;
+    li.addEventListener('click', () => createAndAddToLista(qRaw));
+    list.appendChild(li);
+  }
 
   filtered.forEach((k) => {
     const name = state.master[k];
-    const inCart = !!state.lista[k];
+    const inListaRow = !!state.lista[k];
+    const inCartMarked = inListaRow && state.lista[k].inCart;
     const li = document.createElement('li');
+    li.classList.toggle('picked', inListaRow);
+    li.classList.toggle('in-cart-locked', inCartMarked);
     li.innerHTML = `
       <div class="body">
+        <span class="pick-check" aria-hidden="true"></span>
         <span class="name"></span>
       </div>
-      <button class="add-to-lista" aria-label="${inCart ? 'Quitar de la lista' : 'Añadir a la lista'}" title="${inCart ? 'Quitar de la lista' : 'Añadir a la lista'}">${inCart ? '✓' : '🛒'}</button>
-      <button class="remove" aria-label="Borrar">×</button>
+      <button class="remove remove-master" aria-label="Borrar del catálogo" title="Borrar del catálogo">×</button>
     `;
     li.querySelector('.name').textContent = name;
-    const addBtn = li.querySelector('.add-to-lista');
-    addBtn.classList.toggle('in-cart', inCart);
-    addBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (state.shopping) {
-        showToast('Finaliza la compra actual para modificar la lista', true);
-        return;
-      }
-      if (inCart) {
-        removeFromLista(k);
-      } else {
-        addToLista(k);
-      }
-    });
+    li.addEventListener('click', () => toggleCatalogRow(k));
     li.querySelector('.remove').addEventListener('click', (e) => {
       e.stopPropagation();
-      confirmDialog(`¿Borrar "${name}" del catálogo?`, () => removeFromMaster(k));
+      confirmDialog(`¿Borrar "${name}" del catálogo? (No se quita de la lista actual.)`, () => removeFromMaster(k));
     });
     list.appendChild(li);
   });
+}
+
+async function handleCatalogEnter() {
+  const qRaw = (state.addQuery || '').trim();
+  if (!qRaw) return;
+
+  const tryAddKey = async (key) => {
+    if (state.lista[key]) {
+      if (state.shopping && state.lista[key].inCart) {
+        showToast(`"${state.master[key]}" ya está en el carrito. Desmárcalo en Comprar para quitarlo.`, true);
+      } else {
+        showToast(`"${state.master[key]}" ya está en la lista`, true);
+      }
+      return;
+    }
+    await toggleCatalogRow(key);
+  };
+
+  const exactKey = findMasterKeyByExactQuery(qRaw);
+  if (exactKey) {
+    await tryAddKey(exactKey);
+    return;
+  }
+
+  const keys = Object.keys(state.master);
+  const qNorm = normalizeForSearch(qRaw);
+  const filtered = keys.filter(k => normalizeForSearch(state.master[k]).includes(qNorm));
+
+  if (filtered.length === 1) {
+    await tryAddKey(filtered[0]);
+    return;
+  }
+
+  if (shouldShowCreateRow(qRaw)) {
+    await createAndAddToLista(qRaw);
+  }
 }
 
 // ============================================================
@@ -590,25 +727,26 @@ $('btn-change-key').addEventListener('click', () => {
 // FORM / BUTTONS
 // ============================================================
 
-$('add-form').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const input = $('add-input');
-  addToMaster(input.value);
-  input.value = '';
-  input.focus();
-});
-
 $('btn-start-shop').addEventListener('click', startShopping);
 $('add-search').addEventListener('input', (e) => {
   state.addQuery = e.target.value;
   renderMaster();
+});
+$('add-search').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleCatalogEnter();
+  }
 });
 $('btn-finish-shop').addEventListener('click', () => {
   const total = Object.keys(state.lista).length;
   const done = Object.values(state.lista).filter(x => x.inCart).length;
   const und = total - done;
   if (und > 0) {
-    confirmDialog(`Te quedan ${und} producto${und === 1 ? '' : 's'} sin marcar. ¿Finalizar y vaciar la lista de todas formas?`, () => finishShopping());
+    confirmDialog(
+      `Has marcado ${done} de ${total}. Quedan ${und} producto${und === 1 ? '' : 's'} sin marcar que se mantendrán para la próxima compra. ¿Finalizar esta compra?`,
+      () => finishShopping()
+    );
   } else {
     finishShopping();
   }

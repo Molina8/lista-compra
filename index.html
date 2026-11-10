@@ -62,7 +62,7 @@
                     </div>
                   </div>
                               <ul id="lista-edit" class="list"></ul>
-                              <p id="lista-edit-empty" class="empty" hidden>Tu lista está vacía. Ve a <strong>Catálogo</strong> y añade productos con 🛒.</p>
+                              <p id="lista-edit-empty" class="empty" hidden>Tu lista está vacía. Ve a <strong>Catálogo</strong> y toca un producto para añadirlo.</p>
                               <button id="btn-start-shop" class="btn btn-primary btn-block btn-lg" disabled>
                                 <span>🛒</span><span>Iniciar compra</span>
                               </button>
@@ -96,7 +96,7 @@
                     <div class="empty-badge">✓</div>
                   </div>
                   <h2 class="empty-title">Tu lista está vacía</h2>
-                  <p class="empty-text">Ve a <strong>Catálogo</strong>, busca un producto y añádelo a la lista con el botón 🛒. Apúntalos poco a poco entre días y cuando vayas al súper, pulsa <strong>Iniciar compra</strong>.</p>
+                  <p class="empty-text">Ve a <strong>Catálogo</strong>, escribe o busca un producto y tócalo para añadirlo a la lista. Cuando vayas al súper, pulsa <strong>Iniciar compra</strong>.</p>
                   <button class="btn btn-primary btn-lg" id="btn-go-master">Ir al catálogo</button>
                 </div>
               </div>
@@ -109,17 +109,13 @@
             <span class="section-subtitle" id="master-counter">0 productos guardados</span>
           </div>
         </div>
-        <form id="add-form" class="add-form">
-          <span class="add-icon">✎</span>
-          <input id="add-input" type="text" placeholder="Añadir producto (ej. Avena, Yogur…)" autocomplete="off" required />
-          <button type="submit" class="add-btn" aria-label="Añadir">+</button>
-        </form>
         <div class="pick-search-wrap">
           <span class="pick-search-icon">⌕</span>
-          <input id="add-search" type="search" placeholder="Buscar en el catálogo…" autocomplete="off" />
+          <input id="add-search" type="search" placeholder="Buscar o añadir producto…" autocomplete="off" enterkeyhint="done" />
         </div>
+        <p class="pick-hint empty" id="catalog-hint">Escribe para filtrar. Toca una fila para añadir o quitar de la lista.</p>
         <ul id="master-list" class="list"></ul>
-        <p id="add-empty" class="empty" hidden>Catálogo vacío. Añade el primer producto arriba.</p>
+        <p id="add-empty" class="empty" hidden>Catálogo vacío. Escribe el nombre del primer producto arriba.</p>
         <p id="add-no-results" class="empty" hidden>Ningún producto coincide con la búsqueda.</p>
       </section>
 
