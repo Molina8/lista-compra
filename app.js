@@ -5,6 +5,8 @@
 //   /listas/<clave>/lista/items     = { nameLower: { name, inCart, ts } }     (lista única persistente)
 //   /listas/<clave>/lista/shopping  = boolean                                  (¿hay compra en curso?)
 
+import { normalizeForSearch, listaAfterFinish } from './lib/list-logic.js';
+
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDVodEI4q1k280O50xvb5gnzLN_IPtxZrI",
   authDomain: "list-e9e7f.firebaseapp.com",
@@ -18,20 +20,6 @@ const FIREBASE_CONFIG = {
 
 const KEY_STORAGE = 'lista-compra-key-v1';
 const $ = (id) => document.getElementById(id);
-
-function normalizeForSearch(str) {
-  return (str || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
-}
-
-function listaAfterFinish(lista) {
-  const remaining = {};
-  for (const [k, item] of Object.entries(lista || {})) {
-    if (!item.inCart) {
-      remaining[k] = { name: item.name, inCart: false };
-    }
-  }
-  return remaining;
-}
 
 function masterKeyForName(name) {
   return name.trim().toLowerCase();

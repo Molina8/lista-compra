@@ -357,17 +357,25 @@ body {
 .list li .remove-master:hover,
 .list li .remove-master:focus-visible { opacity: 1; }
 
-/* Fila crear producto nuevo */
+/* Fila crear producto nuevo (acción principal: texto completo, buen contraste) */
 .list li.create-row {
-  background: var(--primary-tint);
-  border: 1px dashed var(--primary);
+  align-items: flex-start;
+  min-height: auto;
+  padding: 14px 16px;
+  background: var(--primary-container);
+  border: 2px solid var(--primary);
+  box-shadow: var(--shadow-md);
+}
+.list li.create-row .body {
+  align-items: flex-start;
 }
 .list li.create-row .create-plus {
   width: 28px;
   height: 28px;
+  margin-top: 2px;
   border-radius: 50%;
-  background: var(--primary-container);
-  color: var(--primary-dark);
+  background: var(--primary);
+  color: var(--on-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -375,9 +383,17 @@ body {
   font-size: 18px;
   font-weight: 600;
 }
+.list li.create-row .name,
 .list li.create-row .create-label {
-  color: var(--primary-dark);
+  color: var(--on-primary-container);
   font-weight: 600;
+  font-size: 16px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .list li.in-cart-locked {
@@ -400,7 +416,7 @@ body {
   text-decoration: line-through;
   color: var(--on-surface-variant);
 }
-.list li.done { opacity: 0.78; }
+.list li.done { opacity: 1; }
 
 /* ===================== PROGRESS (Comprar) ===================== */
 .progress { margin-bottom: 16px; }

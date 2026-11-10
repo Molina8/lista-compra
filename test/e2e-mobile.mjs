@@ -72,6 +72,12 @@ async function run() {
   await search.fill('Zanahoria Nueva');
   await page.waitForSelector('.create-row');
   await page.screenshot({ path: path.join(ARTIFACTS, 'catalog-create-row.png'), fullPage: true });
+  await search.fill('Aceite de oliva virgen extra de primera presión en frío');
+  await page.waitForSelector('.create-row');
+  const createText = await page.locator('.create-row .create-label').innerText();
+  if (!createText.includes('Aceite de oliva')) throw new Error('Fila crear no muestra nombre largo');
+  await page.screenshot({ path: path.join(ARTIFACTS, 'catalog-create-row-long.png'), fullPage: true });
+  await search.fill('Zanahoria Nueva');
   await page.click('.create-row');
   await page.waitForTimeout(400);
 
@@ -135,8 +141,15 @@ async function run() {
   await page.waitForTimeout(400);
   await page.click('[data-view="shop"]');
   await page.waitForSelector('#shop-list li >> text=Mantequilla');
+  await page.waitForFunction(() => {
+    const v = document.getElementById('view-shop');
+    return v && !v.hidden && getComputedStyle(v).opacity >= 0.99;
+  });
+  await page.waitForTimeout(200);
   const totalActive = await page.locator('#shop-list li').count();
   if (totalActive !== 3) throw new Error(`Esperados 3 en compra activa, hay ${totalActive}`);
+  const pendingOpacity = await page.locator('#shop-list li:not(.done)').first().evaluate((el) => getComputedStyle(el).opacity);
+  if (parseFloat(pendingOpacity) < 0.95) throw new Error(`Ítems pendientes demasiado atenuados: opacity ${pendingOpacity}`);
 
   await page.screenshot({ path: path.join(ARTIFACTS, 'compra-activa-anadido.png'), fullPage: true });
 
