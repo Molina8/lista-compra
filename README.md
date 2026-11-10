@@ -1,14 +1,14 @@
 # Lista de la compra 🛒
 
-PWA minimalista para la compra del súper. Sin servidor, sin cuentas, sin precios. Todo se guarda en este móvil.
+PWA minimalista para la compra del súper. Sin servidor propio, sin cuentas, sin precios. Sincronización opcional con Firebase mediante una clave compartida.
 
 ## Cómo se usa
 
-1. **Catálogo** — añade los productos que sueles comprar (lechuga, leche, papel higiénico…).
-2. **Tu lista** — entra en la pestaña *Comprar*. La lista única está siempre ahí, vacía de inicio.
-3. Ve apuntando productos con el buscador a lo largo de los días: un día leche, otro día papel higiénico… La lista **persiste**.
-4. Cuando vayas al súper, pulsa **Iniciar compra**. La app entra en modo *check*: marca cada producto con un toque cuando lo metas en el carrito.
-5. Al llegar a casa, pulsa **Finalizar compra**. La lista única se vacía, lista para empezar la siguiente.
+1. **Catálogo** — escribe o busca un producto. Toca una fila para añadirlo a la lista (o quitarlo). Si no existe, usa la fila «Crear … y añadir a la lista».
+2. **Tu lista** — pestaña *Comprar*. La lista persiste entre días.
+3. Cuando vayas al súper, pulsa **Iniciar compra**. Marca cada producto al meterlo en el carrito.
+4. **Finalizar compra** — los productos marcados se dan por comprados y salen de la lista; los que no marcaste **siguen en la lista** para la siguiente visita al súper (p. ej. otro centro).
+5. Puedes añadir productos desde el catálogo también **durante** una compra en curso; aparecerán como pendientes.
 
 ## Cómo se instala
 
@@ -28,11 +28,11 @@ Funciona también entrando a la URL desde cualquier navegador.
 
 ## Funciones
 
-- **Exportar / Importar** (Ajustes): si quieres pasar la lista a otro dispositivo, exporta un JSON y luego impórtalo allí.
-- **Borrar todo** (Ajustes): resetea la app.
+- **Exportar** (Ajustes): descarga un JSON con catálogo y lista.
+- **Borrar todo** (Ajustes): resetea la lista compartida en Firebase.
 - **Funciona sin internet** después de la primera visita (Service Worker).
 
 ## Privacidad
 
-- 100% local. Nada sale del móvil.
-- Sin cookies, sin tracking, sin analytics.
+- Con Firebase: los datos viven bajo una clave que solo conocéis quienes la compartís. Sin emails ni cuentas.
+- Sin conexión: la app puede seguir en modo local en el dispositivo.

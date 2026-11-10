@@ -1,6 +1,6 @@
 // Service Worker mínimo: cache-first para que la app funcione offline.
-const CACHE = 'lista-compra-v9';
-const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json', './icon.svg'];
+const CACHE = 'lista-compra-v11';
+const ASSETS = ['./', './index.html', './styles.css', './app.js', './lib/list-logic.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
